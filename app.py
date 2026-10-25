@@ -15,10 +15,14 @@ os.makedirs("designs", exist_ok=True)
 def init_db():
     conn = sqlite3.connect('boutique.db')
     c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS users (
+    # Recreate tables to ensure correct column schema matches
+    c.execute('DROP TABLE IF EXISTS users')
+    c.execute('DROP TABLE IF EXISTS orders')
+    
+    c.execute('''CREATE TABLE users (
         name TEXT, phone TEXT UNIQUE, password TEXT, face_image TEXT, role TEXT
     )''')
-    c.execute('''CREATE TABLE IF NOT EXISTS orders (
+    c.execute('''CREATE TABLE orders (
         order_id INTEGER PRIMARY KEY AUTOINCREMENT,
         customer_name TEXT,
         customer_face TEXT,
@@ -147,7 +151,7 @@ else:
                     st.write(f"**Due Date:** {order[4]}")
                     st.write(f"**Status:** {order[5]}")
                 with col5:
-                    if st.button(f"Mark Completed {order[0]}"):
+                    if st.button(f"Mark Completed {order[0]}", key=f"complete_{order[0]}"):
                         conn = sqlite3.connect('boutique.db')
                         c = conn.cursor()
                         c.execute("UPDATE orders SET status = 'Completed' WHERE order_id = ?", (order[0],))
@@ -172,7 +176,6 @@ else:
 
         st.subheader("Choose Your Shape (Visual Selection)")
         
-        # Visual shape options (using placeholder sample images or custom uploads)
         shape_choice = st.radio(
             "Select Neck / Sleeve Shape Style",
             ["V-Neck Style", "U-Neck Style", "Designer Curve Style", "Custom Shape Upload"]
@@ -181,7 +184,7 @@ else:
         shape_img_path = ""
         if shape_choice == "V-Neck Style":
             st.info("Selected Shape: V-Neck")
-            shape_img_path = "designs/v_neck.png" # Default reference
+            shape_img_path = "designs/v_neck.png"
         elif shape_choice == "U-Neck Style":
             st.info("Selected Shape: U-Neck")
             shape_img_path = "designs/u_neck.png"
