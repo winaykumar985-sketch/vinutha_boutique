@@ -179,10 +179,10 @@ else:
                         st.rerun()
                 st.markdown("---")
 
-    # --- CUSTOMER PORTAL ---
+    # --- CUSTOMER PORTAL WITH VISUAL SHAPE GRID ---
     else:
         st.title("👗 Customer Design Selection & Order Portal")
-        st.write("Select your desired shape visually, upload your fabric reference, and place your order.")
+        st.write("Select your desired shape from the visual catalog below, upload your fabric reference, and place your order.")
         
         conn = sqlite3.connect('boutique.db')
         c = conn.cursor()
@@ -191,30 +191,39 @@ else:
         conn.close()
         customer_face_path = res[0] if res else ""
 
-        st.subheader("Choose Your Shape (Visual Selection)")
+        st.subheader("🎨 Choose Your Shape (Visual Catalog)")
         
+        # Visual Grid Layout for Shape Selection
         shape_choice = st.radio(
-            "Select Neck / Sleeve Shape Style",
-            ["V-Neck Style", "U-Neck Style", "Designer Curve Style", "Custom Shape Upload"]
+            "Select Design Pattern",
+            ["V-Neck Style", "U-Neck Style", "Designer Curve", "Custom Shape Upload"]
         )
         
+        # Display Visual Shape Previews in Columns
+        col_v, col_u, col_c = st.columns(3)
+        with col_v:
+            st.image("https://img.icons8.com/ios/150/v-neck.png", width=100, caption="V-Neck Style")
+        with col_u:
+            st.image("https://img.icons8.com/ios/150/u-form.png", width=100, caption="U-Neck Style")
+        with col_c:
+            st.image("https://img.icons8.com/ios/150/flower-doodle.png", width=100, caption="Designer Curve")
+
         shape_img_path = ""
         if shape_choice == "V-Neck Style":
-            st.info("Selected Shape: V-Neck")
             shape_img_path = "designs/v_neck.png"
         elif shape_choice == "U-Neck Style":
-            st.info("Selected Shape: U-Neck")
             shape_img_path = "designs/u_neck.png"
-        elif shape_choice == "Designer Curve Style":
-            st.info("Selected Shape: Designer Curve")
+        elif shape_choice == "Designer Curve":
             shape_img_path = "designs/curve.png"
         else:
-            custom_shape_file = st.file_uploader("Upload your custom shape drawing/image", type=["png", "jpg", "jpeg"])
+            st.write("### Upload Custom Shape Drawing")
+            custom_shape_file = st.file_uploader("Upload your custom sketch/image", type=["png", "jpg", "jpeg"])
             if custom_shape_file:
                 shape_img_path = f"designs/custom_{st.session_state.username}.jpg"
                 img = Image.open(custom_shape_file)
                 img.save(shape_img_path)
 
+        st.markdown("---")
         delivery_date = st.date_input("Select Required Delivery Date")
         fabric_img = st.file_uploader("Upload Fabric / Reference Photo", type=["jpg", "png", "jpeg"])
         
@@ -224,13 +233,13 @@ else:
             Image.open(fabric_img).save(ref_path)
 
         if st.button("Submit Order"):
-            if not shape_img_path:
-                st.warning("Please select or upload a shape image.")
-            else:
-                conn = sqlite3.connect('boutique.db')
-                c = conn.cursor()
-                c.execute("INSERT INTO orders (customer_name, customer_face, shape_image, delivery_date, status, ref_image) VALUES (?, ?, ?, ?, ?, ?)",
-                          (st.session_state.username, customer_face_path, shape_img_path, str(delivery_date), "Pending Stitching", ref_path))
-                conn.commit()
-                conn.close()
-                st.success("Your design order has been submitted successfully to the shop owner!")
+            if not shape_img_path and shape_choice != "Custom Shape Upload":
+                shape_img_path = "designs/default.png" # Fallback placeholder
+            
+            conn = sqlite3.connect('boutique.db')
+            c = conn.cursor()
+            c.execute("INSERT INTO orders (customer_name, customer_face, shape_image, delivery_date, status, ref_image) VALUES (?, ?, ?, ?, ?, ?)",
+                      (st.session_state.username, customer_face_path, shape_img_path, str(delivery_date), "Pending Stitching", ref_path))
+            conn.commit()
+            conn.close()
+            st.success("Your design order has been submitted successfully to the shop owner!")
