@@ -15,14 +15,10 @@ os.makedirs("designs", exist_ok=True)
 def init_db():
     conn = sqlite3.connect('boutique.db')
     c = conn.cursor()
-    # Recreate tables to ensure correct column schema matches
-    c.execute('DROP TABLE IF EXISTS users')
-    c.execute('DROP TABLE IF EXISTS orders')
-    
-    c.execute('''CREATE TABLE users (
+    c.execute('''CREATE TABLE IF NOT EXISTS users (
         name TEXT, phone TEXT UNIQUE, password TEXT, face_image TEXT, role TEXT
     )''')
-    c.execute('''CREATE TABLE orders (
+    c.execute('''CREATE TABLE IF NOT EXISTS orders (
         order_id INTEGER PRIMARY KEY AUTOINCREMENT,
         customer_name TEXT,
         customer_face TEXT,
@@ -42,11 +38,11 @@ if "logged_in" not in st.session_state:
     st.session_state.user_role = None
     st.session_state.username = None
 
-# --- AUTHENTICATION & REGISTRATION ---
+# --- AUTHENTICATION, REGISTRATION & FORGOT PASSWORD ---
 if not st.session_state.logged_in:
-    st.title("🔐 VO Boutique Portal - Login / Register")
+    st.title("🔐 VO Boutique Portal - Account Access")
     
-    auth_mode = st.radio("Choose Action", ["Login", "Register (New User)"])
+    auth_mode = st.radio("Choose Action", ["Login", "Register (New User)", "Forgot Password"])
     
     if auth_mode == "Register (New User)":
         st.subheader("📝 New Account Registration with Face Capture & OTP")
@@ -58,7 +54,6 @@ if not st.session_state.logged_in:
         st.write("📸 **Capture Your Face Image for Profile / Verification**")
         face_cam = st.camera_input("Take a photo of your face")
         
-        # OTP Step Simulation
         otp_input = st.text_input("Enter 4-Digit OTP (Enter '1234' for testing)")
         
         if st.button("Verify OTP & Complete Registration"):
@@ -67,7 +62,6 @@ if not st.session_state.logged_in:
             elif otp_input != "1234":
                 st.error("Invalid OTP. Please enter '1234'.")
             else:
-                # Save face image
                 face_path = f"faces/{reg_phone}.jpg"
                 img = Image.open(face_cam)
                 img.save(face_path)
@@ -83,7 +77,7 @@ if not st.session_state.logged_in:
                     st.error("Phone number already registered!")
                 conn.close()
                 
-    else:
+    elif auth_mode == "Login":
         st.subheader("🔑 Login to Your Account")
         login_phone = st.text_input("Registered Phone Number")
         login_pass = st.text_input("Password", type="password")
@@ -104,6 +98,31 @@ if not st.session_state.logged_in:
             else:
                 st.error("Invalid phone number or password.")
 
+    else:
+        st.subheader("🔄 Reset Your Password")
+        fp_phone = st.text_input("Registered Phone Number", key="fp_phone")
+        otp_fp = st.text_input("Enter 4-Digit OTP (Enter '1234' for testing)", key="fp_otp")
+        new_pass = st.text_input("Enter New Password", type="password", key="fp_new_pass")
+        
+        if st.button("Reset Password"):
+            if not fp_phone or not new_pass:
+                st.warning("Please fill in all required fields.")
+            elif otp_fp != "1234":
+                st.error("Invalid OTP. Please enter '1234'.")
+            else:
+                conn = sqlite3.connect('boutique.db')
+                c = conn.cursor()
+                c.execute("SELECT * FROM users WHERE phone = ?", (fp_phone,))
+                user_exists = c.fetchone()
+                
+                if user_exists:
+                    c.execute("UPDATE users SET password = ? WHERE phone = ?", (new_pass, fp_phone))
+                    conn.commit()
+                    st.success("Password reset successfully! You can now switch to Login and sign in.")
+                else:
+                    st.error("This phone number is not registered in the database.")
+                conn.close()
+
 else:
     # --- LOGOUT BUTTON IN SIDEBAR ---
     st.sidebar.write(f"👤 Logged in as: **{st.session_state.username}** ({st.session_state.user_role})")
@@ -120,7 +139,6 @@ else:
         st.subheader("⚠️ 2-Day Delivery Countdown Alerts")
         st.info("Orders due within 2 days require immediate attention and finishing.")
 
-        # Display Orders Table with Customer Face & Shape Images
         st.write("### Active Customer Orders")
         
         conn = sqlite3.connect('boutique.db')
@@ -166,7 +184,6 @@ else:
         st.title("👗 Customer Design Selection & Order Portal")
         st.write("Select your desired shape visually, upload your fabric reference, and place your order.")
         
-        # Retrieve customer's saved face image
         conn = sqlite3.connect('boutique.db')
         c = conn.cursor()
         c.execute("SELECT face_image FROM users WHERE name = ?", (st.session_state.username,))
